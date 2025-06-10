@@ -1,0 +1,47 @@
+services:
+  traefik:
+    image: traefik:v2.9
+    container_name: traefik
+    command:
+      - --configFile=/etc/traefik/traefik.yml
+    ports:
+      - "80:80"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik_configuration.yml:/etc/traefik/traefik.yml
+    networks:
+      - traefik-front
+      - traefik-back
+
+
+  frontend:
+    build:
+      context: ./frontend
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=PathPrefix(`/`)"
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
+    deploy:
+      replicas: 3
+    networks:
+      - traefik-front
+
+  backend:
+    build:
+      context: ./backend
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend.rule=PathPrefix(`/api`)"
+      - "traefik.http.routers.backend.middlewares=strip-api"
+      - "traefik.http.services.backend.loadbalancer.server.port=8081"
+      - "traefik.http.middlewares.strip-api.stripprefix.prefixes=/api"
+    deploy:
+      replicas: 3
+    networks:
+      - traefik-back
+
+networks:
+  traefik-front:
+    driver: bridge
+  traefik-back:
+    driver: bridge
