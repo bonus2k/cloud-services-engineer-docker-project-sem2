@@ -31,7 +31,7 @@ jobs:
           with:
             context: ./frontend/
             build-args: |
-              VUE_APP_API_URL=${{ env.API_PREFIX_PROD }}
+              VUE_APP_API_URL=${{ vars.API_PREFIX_PROD }}
             push: true
             tags: ${{ secrets.DOCKER_USER }}/docker-project-frontend:latest
 
