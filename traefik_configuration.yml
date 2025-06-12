@@ -1,9 +1,17 @@
 entryPoints:
   web:
     address: ":80"
+  ping:
+    address: ":8082"
+
+ping:
+  entryPoint: ping
+
 providers:
   docker:
     exposedByDefault: false
+
 log:
   level: DEBUG
+
 accessLog: {}

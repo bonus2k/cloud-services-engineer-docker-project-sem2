@@ -1,0 +1,19 @@
+# IDE / Editor config
+.idea
+.vscode
+*.swp
+*.swo
+
+# Git
+.git
+.gitignore
+
+# Node modules
+node_modules
+
+# Build artifacts
+dist
+
+# OS files
+.DS_Store
+Thumbs.db
