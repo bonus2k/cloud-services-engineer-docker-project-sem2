@@ -39,7 +39,10 @@ services:
       - traefik-back
 
   frontend:
-    image: ${DOCKER_USER}/docker-project-frontend:latest
+    build:
+      context: ./frontend
+      args:
+        VUE_APP_API_URL: "${API_PREFIX}/"
     restart: unless-stopped
     cap_drop:
       - ALL
@@ -77,7 +80,8 @@ services:
         condition: service_healthy
 
   backend:
-    image: ${DOCKER_USER}/docker-project-backend:latest
+    build:
+      context: ./backend
     restart: unless-stopped
     cap_drop:
       - ALL
@@ -87,10 +91,10 @@ services:
     read_only: true
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.backend.rule=PathPrefix(`${API_PREFIX_PROD}`)"
+      - "traefik.http.routers.backend.rule=PathPrefix(`${API_PREFIX}`)"
       - "traefik.http.routers.backend.middlewares=strip-api"
       - "traefik.http.services.backend.loadbalancer.server.port=8081"
-      - "traefik.http.middlewares.strip-api.stripprefix.prefixes=${API_PREFIX_PROD}"
+      - "traefik.http.middlewares.strip-api.stripprefix.prefixes=${API_PREFIX}"
     healthcheck:
       test: [ "CMD", "/healthcheck" ]
       interval: 30s
