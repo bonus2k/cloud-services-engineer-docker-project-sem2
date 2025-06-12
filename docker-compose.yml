@@ -2,6 +2,7 @@ services:
   traefik:
     image: traefik:v2.9
     container_name: traefik
+    restart: unless-stopped
     cap_drop:
       - ALL
     cap_add:
@@ -12,6 +13,10 @@ services:
       - "80:80"
     security_opt:
       - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/run
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik_configuration.yml:/etc/traefik/traefik.yml
@@ -32,21 +37,30 @@ services:
     networks:
       - traefik-front
       - traefik-back
+    profiles:
+      - dev
+      - prod
 
-  frontend:
+  frontend-dev:
     build:
       context: ./frontend
+      args:
+        VUE_APP_API_URL: "${API_PREFIX}/"
+    restart: unless-stopped
     cap_drop:
       - ALL
     user: "1000:1000"
     security_opt:
       - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.frontend.rule=PathPrefix(`/`)"
       - "traefik.http.services.frontend.loadbalancer.server.port=8080"
     healthcheck:
-      test: [ "CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/index.html" ]
+      test: [ "CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/" ]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -65,23 +79,27 @@ services:
     depends_on:
       traefik:
         condition: service_healthy
-      backend:
+      backend-dev:
         condition: service_healthy
+    profiles:
+      - dev
 
-  backend:
+  backend-dev:
     build:
       context: ./backend
+    restart: unless-stopped
     cap_drop:
       - ALL
     user: "1000:1000"
     security_opt:
       - no-new-privileges:true
+    read_only: true
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.backend.rule=PathPrefix(`/api`)"
+      - "traefik.http.routers.backend.rule=PathPrefix(`${API_PREFIX}`)"
       - "traefik.http.routers.backend.middlewares=strip-api"
       - "traefik.http.services.backend.loadbalancer.server.port=8081"
-      - "traefik.http.middlewares.strip-api.stripprefix.prefixes=/api"
+      - "traefik.http.middlewares.strip-api.stripprefix.prefixes=${API_PREFIX}"
     healthcheck:
       test: [ "CMD", "/healthcheck" ]
       interval: 30s
@@ -102,6 +120,86 @@ services:
     depends_on:
       traefik:
         condition: service_healthy
+    profiles:
+      - dev
+
+  frontend:
+    image: ${DOCKER_USER}/docker-project-frontend:latest
+    restart: unless-stopped
+    cap_drop:
+      - ALL
+    user: "1000:1000"
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=PathPrefix(`/`)"
+      - "traefik.http.services.frontend.loadbalancer.server.port=8080"
+    healthcheck:
+      test: [ "CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    networks:
+      - traefik-front
+    depends_on:
+      traefik:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    profiles:
+      - prod
+
+  backend:
+    image: ${DOCKER_USER}/docker-project-backend:latest
+    restart: unless-stopped
+    cap_drop:
+      - ALL
+    user: "1000:1000"
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend.rule=PathPrefix(`${API_PREFIX_PROD}`)"
+      - "traefik.http.routers.backend.middlewares=strip-api"
+      - "traefik.http.services.backend.loadbalancer.server.port=8081"
+      - "traefik.http.middlewares.strip-api.stripprefix.prefixes=${API_PREFIX_PROD}"
+    healthcheck:
+      test: [ "CMD", "/healthcheck" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      replicas: 3
+      resources:
+        limits:
+          cpus: '0.3'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 128M
+    networks:
+      - traefik-back
+    depends_on:
+      traefik:
+        condition: service_healthy
+    profiles:
+      - prod
 
 networks:
   traefik-front:

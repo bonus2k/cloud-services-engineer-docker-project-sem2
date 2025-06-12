@@ -30,8 +30,40 @@ jobs:
           uses: docker/build-push-action@v4
           with:
             context: ./frontend/
+            build-args: |
+              VUE_APP_API_URL=${{ env.API_PREFIX_PROD }}
             push: true
             tags: ${{ secrets.DOCKER_USER }}/docker-project-frontend:latest
+
+  run-trivy-scan-backend:
+    name: Run Trivy scan for Backend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v3
+      - name: Pull Backend image
+        run: docker pull ${{ secrets.DOCKER_USER }}/docker-project-backend:latest
+      - name: Run Trivy scan backend
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ secrets.DOCKER_USER }}/docker-project-backend:latest
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+
+  run-trivy-scan-frontend:
+    name: Run Trivy scan for Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v3
+      - name: Pull Frontend image
+        run: docker pull ${{ secrets.DOCKER_USER }}/docker-project-frontend:latest
+      - name: Run Trivy scan frontend
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ secrets.DOCKER_USER }}/docker-project-frontend:latest
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
 
   run-with-docker-compose:
     name: Push Docker image to DockerHub
